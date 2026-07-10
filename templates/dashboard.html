@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - MeuCardápio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="navbar">
+            <div class="navbar-content">
+                <h1>MeuCardápio</h1>
+                <button class="btn btn-danger" onclick="logout()">Sair</button>
+            </div>
+        </nav>
+
+        <div class="dashboard-content">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('profile')">Perfil</button>
+                <button class="tab-button" onclick="switchTab('edit')">Editar Dados</button>
+                <button class="tab-button" onclick="switchTab('password')">Alterar Senha</button>
+                <button class="tab-button" onclick="switchTab('delete')">Deletar Conta</button>
+            </div>
+
+            <!-- Aba: Perfil -->
+            <div id="profile" class="tab-content active">
+                <h2>Meu Perfil</h2>
+                <div class="profile-card">
+                    <div class="profile-field">
+                        <label>Nome:</label>
+                        <p id="profileNome"></p>
+                    </div>
+                    <div class="profile-field">
+                        <label>Email:</label>
+                        <p id="profileEmail"></p>
+                    </div>
+                    <div class="profile-field">
+                        <label>Membro desde:</label>
+                        <p id="profileData"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aba: Editar Dados -->
+            <div id="edit" class="tab-content">
+                <h2>Editar Dados</h2>
+                <form id="editForm" class="form-container">
+                    <div class="form-group">
+                        <label for="editNome">Nome:</label>
+                        <input type="text" id="editNome" name="nome" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editEmail">Email:</label>
+                        <input type="email" id="editEmail" name="email" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    <div id="editMessage" class="message"></div>
+                </form>
+            </div>
+
+            <!-- Aba: Alterar Senha -->
+            <div id="password" class="tab-content">
+                <h2>Alterar Senha</h2>
+                <form id="passwordForm" class="form-container">
+                    <div class="form-group">
+                        <label for="oldPassword">Senha Atual:</label>
+                        <input type="password" id="oldPassword" name="old_password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newPassword">Nova Senha:</label>
+                        <input type="password" id="newPassword" name="new_password" required placeholder="Mínimo 6 caracteres">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmNewPassword">Confirmar Nova Senha:</label>
+                        <input type="password" id="confirmNewPassword" name="confirm_password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Alterar Senha</button>
+                    <div id="passwordMessage" class="message"></div>
+                </form>
+            </div>
+
+            <!-- Aba: Deletar Conta -->
+            <div id="delete" class="tab-content">
+                <h2>Deletar Conta</h2>
+                <div class="warning-box">
+                    <p><strong>⚠️ Atenção!</strong> Esta ação é irreversível. Sua conta e todos os dados serão permanentemente deletados.</p>
+                </div>
+                <form id="deleteForm" class="form-container">
+                    <div class="form-group">
+                        <label for="deletePassword">Digite sua senha para confirmar:</label>
+                        <input type="password" id="deletePassword" name="password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger">Deletar Minha Conta</button>
+                    <div id="deleteMessage" class="message"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Carregar dados do usuário ao iniciar
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/user');
+                const data = await response.json();
+
+                if (data.success) {
+                    const usuario = data.data;
+                    const dataFormatada = new Date(usuario.criado_em).toLocaleDateString('pt-BR');
+
+                    // Preencher aba de perfil
+                    document.getElementById('profileNome').textContent = usuario.nome;
+                    document.getElementById('profileEmail').textContent = usuario.email;
+                    document.getElementById('profileData').textContent = dataFormatada;
+
+                    // Preencher formulário de edição
+                    document.getElementById('editNome').value = usuario.nome;
+                    document.getElementById('editEmail').value = usuario.email;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        // Alternar entre abas
+        function switchTab(tabName) {
+            // Esconder todas as abas
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remover active dos botões
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Mostrar aba selecionada
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Editar dados
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('editNome').value;
+            const email = document.getElementById('editEmail').value;
+            const messageDiv = document.getElementById('editMessage');
+
+            try {
+                const response = await fetch('/api/user/update', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nome, email })
+                });
+
+                const data = await response.json();
+                messageDiv.className = 'message';
+                messageDiv.textContent = data.message;
+
+                if (data.success) {
+                    messageDiv.classList.add('success');
+                    setTimeout(() => loadUserData(), 1500);
+                } else {
+                    messageDiv.classList.add('error');
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Erro ao atualizar dados.';
+            }
+        });
+
+        // Alterar senha
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const old_password = document.getElementById('oldPassword').value;
+            const new_password = document.getElementById('newPassword').value;
+            const confirm_password = document.getElementById('confirmNewPassword').value;
+            const messageDiv = document.getElementById('passwordMessage');
+
+            try {
+                const response = await fetch('/api/user/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ old_password, new_password, confirm_password })
+                });
+
+                const data = await response.json();
+                messageDiv.className = 'message';
+                messageDiv.textContent = data.message;
+
+                if (data.success) {
+                    messageDiv.classList.add('success');
+                    document.getElementById('passwordForm').reset();
+                } else {
+                    messageDiv.classList.add('error');
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Erro ao alterar senha.';
+            }
+        });
+
+        // Deletar conta
+        document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const password = document.getElementById('deletePassword').value;
+            const messageDiv = document.getElementById('deleteMessage');
+
+            if (!confirm('Tem certeza que deseja deletar sua conta? Esta ação não pode ser desfeita!')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/user/delete', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+                messageDiv.className = 'message';
+                messageDiv.textContent = data.message;
+
+                if (data.success) {
+                    messageDiv.classList.add('success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    messageDiv.classList.add('error');
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Erro ao deletar conta.';
+            }
+        });
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+            }
+        }
+
+        // Carregar dados ao iniciar a página
+        loadUserData();
+    </script>
+</body>
+</html>
